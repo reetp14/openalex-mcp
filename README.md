@@ -27,7 +27,7 @@ npm install -g openalex-mcp
 ### From Source
 
 ```bash
-git clone https://github.com/username/openalex-mcp.git
+git clone https://github.com/reetp14/openalex-mcp.git
 cd openalex-mcp
 npm install
 npm run build
@@ -43,10 +43,16 @@ Add to your MCP client configuration:
 {
   "mcpServers": {
     "openalex": {
-      "command": "openalex-mcp"
+      "command": "npx",
+      "args": ["openalex-mcp"]
     }
   }
 }
+
+json
+
+
+
 ```
 
 Or if installed locally:
