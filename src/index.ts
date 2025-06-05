@@ -92,8 +92,8 @@ const server = new Server({
     return {
         tools: [
             {
-                name: "search_works_detailed",
-                description: "Search scholarly works in OpenAlex (used to find nested entities or detailed searches)",
+                name: "search_works",
+                description: "Search scholarly works in OpenAlex",
                 inputSchema: {
                     type: "object",
                     properties: {
@@ -259,8 +259,8 @@ const server = new Server({
                 }
             },
             {
-                name: "search_basic",
-                description: "search across any OpenAlex entity type, (default search unless asket for deatiled search by user)",
+                name: "autocomplete",
+                description: "Type ahead search across any OpenAlex entity type",
                 inputSchema: {
                     type: "object",
                     properties: {
@@ -315,7 +315,7 @@ const server = new Server({
     const { name, arguments: args } = request.params;
     try {
         switch (name) {
-            case "search_works_detailed":
+            case "search_works":
                 return {
                     content: [{
                             type: "text",
@@ -378,7 +378,7 @@ const server = new Server({
                         }]
                 };
             }
-            case "search_basic": {
+            case "autocomplete": {
                 const params = args;
                 return {
                     content: [{
