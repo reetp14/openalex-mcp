@@ -1,0 +1,51 @@
+{
+  "name": "openalex-mcp",
+  "version": "0.1.0",
+  "description": "A Model Context Protocol (MCP) server that provides access to the OpenAlex API - a fully open catalog of the global research system covering over 240 million scholarly works.",
+  "type": "module",
+  "license": "MIT",
+  "author": "OpenAlex MCP Server Contributors",
+  "homepage": "https://github.com/reetp14/openalex-mcp#readme",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/reetp14/openalex-mcp.git"
+  },
+  "bugs": {
+    "url": "https://github.com/reetp14/openalex-mcp/issues"
+  },
+  "keywords": [
+    "mcp",
+    "model-context-protocol",
+    "openalex",
+    "research",
+    "academic",
+    "scholarly",
+    "api",
+    "server",
+    "citations",
+    "publications"
+  ],
+  "bin": {
+    "openalex-mcp": "./build/index.js"
+  },
+  "files": [
+    "build",
+    "LICENSE",
+    "README.md"
+  ],
+  "scripts": {
+    "build": "tsc && node -e \"require('fs').chmodSync('build/index.js', '755')\"",
+    "prepare": "npm run build",
+    "watch": "tsc --watch",
+    "inspector": "npx @modelcontextprotocol/inspector build/index.js"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "0.6.0",
+    "axios": "^1.9.0",
+    "dotenv": "^16.5.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.11.24",
+    "typescript": "^5.3.3"
+  }
+}
