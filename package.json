@@ -1,6 +1,6 @@
 {
   "name": "openalex-mcp",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "A Model Context Protocol (MCP) server that provides access to the OpenAlex API - a fully open catalog of the global research system covering over 240 million scholarly works.",
   "type": "module",
   "license": "MIT",

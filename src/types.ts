@@ -19,17 +19,69 @@ export interface Work extends OpenAlexEntity {
   publication_year?: number;
   publication_date?: string;
   type: string;
+  type_crossref?: string;
   authorships: Authorship[];
-  concepts: ConceptScore[];
+  concepts: TopicScore[];
+  
+  // Location and access information
   primary_location?: Location;
   locations: Location[];
+  locations_count?: number;
   best_oa_location?: Location;
   open_access: OpenAccess;
+  
+  // Citation and relationship data
   referenced_works: string[];
   related_works: string[];
-  abstract_inverted_index?: { [word: string]: number[] };
   cited_by_api_url: string;
   counts_by_year: YearCount[];
+  
+  // Content and indexing
+  abstract_inverted_index?: { [word: string]: number[] };
+  language?: string;
+  has_fulltext?: boolean;
+  fulltext_origin?: string;
+  
+  // Bibliographic information
+  biblio?: Biblio;
+  
+  // Article Processing Charges
+  apc_list?: APCInfo;
+  apc_paid?: APCInfo;
+  
+  // Quality and status indicators
+  is_paratext?: boolean;
+  is_retracted?: boolean;
+  fwci?: number; // Field-Weighted Citation Impact
+  
+  // Identifiers
+  ids?: WorkIdentifiers;
+  
+  // Indexing information
+  indexed_in?: string[];
+  
+  // Keywords
+  keywords?: Keyword[];
+  
+  // Grants and funding
+  grants?: Grant[];
+  
+  // Author and institution counts
+  countries_distinct_count?: number;
+  institutions_distinct_count?: number;
+  
+  // Corresponding authors
+  corresponding_author_ids?: string[];
+  corresponding_institution_ids?: string[];
+  
+  // Topics and research areas
+  primary_topic?: EmbeddedTopicInfo;
+  topics?: EmbeddedTopicInfo[];
+  
+  // Sustainable Development Goals
+  sustainable_development_goals?: SustainableDevelopmentGoal[];
+  
+  // Timestamps
   updated_date: string;
   created_date: string;
 }
@@ -37,46 +89,82 @@ export interface Work extends OpenAlexEntity {
 // Authors (researchers and creators)
 export interface Author extends OpenAlexEntity {
   orcid?: string;
-  last_known_institution?: Institution;
+  last_known_institution?: InstitutionSummary; // Assuming InstitutionSummary is more appropriate here
   affiliations: Affiliation[];
-  x_concepts: ConceptScore[];
+  x_concepts: TopicScore[]; // Note: to be deprecated
+  concepts?: TopicScore[]; // Added for future compatibility
   counts_by_year: YearCount[];
   summary_stats: {
-    "2yr_mean_citedness": number;
-    h_index: number;
-    i10_index: number;
+    "2yr_mean_citedness": number | null;
+    h_index: number | null;
+    i10_index: number | null;
   };
+  ids?: AuthorIdentifiers;
+  scopus_id?: number; // Renamed from 'scopus' for clarity and consistency
+}
+
+export interface AuthorIdentifiers {
+  openalex?: string;
+  orcid?: string;
+  scopus?: string; // Scopus ID as string, often includes prefix
+  mag?: string;
+}
+
+// Summary for last_known_institution to avoid circular dependencies if full Institution is used
+export interface InstitutionSummary {
+  id: string;
+  display_name: string;
+  ror?: string;
+  country_code?: string;
+  type?: string;
+  lineage?: string[];
 }
 
 // Sources (journals, conferences, repositories)
 export interface Source extends OpenAlexEntity {
+  ids?: SourceIdentifiers;
   issn_l?: string;
-  issn?: string[];
-  host_organization?: string;
+  issn?: string[] | null; // Can be null
+  host_organization?: string; // This is an ID (Publisher or Institution)
   host_organization_name?: string;
   host_organization_lineage?: string[];
+  publisher?: string; // Publisher ID, for exact match
   type: string;
   homepage_url?: string;
   apc_prices?: APCPrice[];
-  apc_usd?: number;
-  country_code?: string;
+  apc_usd?: number | null;
+  country_code?: string | null;
   societies?: Society[];
   alternate_titles?: string[];
   abbreviated_title?: string;
+  is_oa?: boolean;
+  is_in_doaj?: boolean;
+  is_core?: boolean;
   counts_by_year: YearCount[];
-  x_concepts: ConceptScore[];
+  x_concepts: TopicScore[]; // Note: to be deprecated
+  concepts?: TopicScore[]; // Added for future compatibility
   summary_stats: {
-    "2yr_mean_citedness": number;
-    h_index: number;
-    i10_index: number;
+    "2yr_mean_citedness": number | null;
+    h_index: number | null;
+    i10_index: number | null;
   };
+}
+
+export interface SourceIdentifiers {
+  openalex?: string;
+  issn_l?: string;
+  issn?: string[];
+  mag?: string;
+  fatcat?: string; // Another ID system for sources
 }
 
 // Institutions (universities, hospitals, labs)
 export interface Institution extends OpenAlexEntity {
+  ids?: InstitutionIdentifiers;
   ror?: string;
-  country_code: string;
-  type: string;
+  country_code: string; // Already present, ensure it's filterable
+  type: string; // Already present, ensure it's filterable
+  lineage?: string[]; // Array of OpenAlex Institution IDs
   homepage_url?: string;
   image_url?: string;
   image_thumbnail_url?: string;
@@ -84,9 +172,48 @@ export interface Institution extends OpenAlexEntity {
   display_name_alternatives?: string[];
   geo: Geo;
   international: International;
-  associated_institutions: AssociatedInstitution[];
+  associated_institutions: AssociatedInstitution[]; // Relationship to other institutions
+  repositories?: RepositoryInfo[]; // Repositories hosted by this institution
+  is_super_system?: boolean; // New field from documentation
   counts_by_year: YearCount[];
-  x_concepts: ConceptScore[];
+  x_concepts: TopicScore[]; // Note: to be deprecated
+  concepts?: TopicScore[]; // Added for future compatibility
+  summary_stats: {
+    "2yr_mean_citedness": number | null;
+    h_index: number | null;
+    i10_index: number | null;
+  };
+}
+
+export interface InstitutionIdentifiers {
+  openalex?: string;
+  ror?: string;
+  grid?: string; // Another common ID for institutions
+  mag?: string;
+}
+
+export interface RepositoryInfo {
+  id: string; // OpenAlex ID of the repository (a Source)
+  display_name?: string;
+  host_organization?: string; // OpenAlex ID of the institution hosting the repository
+  host_organization_lineage?: string[]; // Lineage of the host_organization
+}
+
+// Topics (formerly Concepts)
+export interface Topic extends OpenAlexEntity {
+  ids?: TopicIdentifiers;
+  wikidata?: string;
+  level: number;
+  description?: string;
+  image_url?: string;
+  image_thumbnail_url?: string;
+  international: International;
+  ancestors: MinimalTopic[]; // Renamed from MinimalConcept
+  related_topics: MinimalTopic[]; // Renamed from related_concepts and MinimalConcept
+  domain?: TopicDomainFieldStructure; // Renamed for clarity
+  field?: TopicDomainFieldStructure;  // Renamed for clarity
+  subfield?: TopicDomainFieldStructure; // Renamed for clarity
+  counts_by_year: YearCount[];
   summary_stats: {
     "2yr_mean_citedness": number;
     h_index: number;
@@ -94,22 +221,15 @@ export interface Institution extends OpenAlexEntity {
   };
 }
 
-// Concepts (hierarchical research topics)
-export interface Concept extends OpenAlexEntity {
+export interface TopicIdentifiers { // Renamed from ConceptIdentifiers
+  openalex?: string;
   wikidata?: string;
-  level: number;
-  description?: string;
-  image_url?: string;
-  image_thumbnail_url?: string;
-  international: International;
-  ancestors: MinimalConcept[];
-  related_concepts: MinimalConcept[];
-  counts_by_year: YearCount[];
-  summary_stats: {
-    "2yr_mean_citedness": number;
-    h_index: number;
-    i10_index: number;
-  };
+  mag?: string;
+}
+
+export interface TopicDomainFieldStructure { // Renamed from TopicDomainField
+  id: string;
+  display_name?: string;
 }
 
 // Publishers (publishing organizations)
@@ -153,9 +273,12 @@ export interface Authorship {
   is_corresponding: boolean;
   raw_author_name: string;
   raw_affiliation_strings: string[];
+  affiliations?: {
+    institution_ids?: string[];
+  };
 }
 
-export interface ConceptScore {
+export interface TopicScore { // Renamed from ConceptScore
   id: string;
   wikidata?: string;
   display_name: string;
@@ -165,6 +288,8 @@ export interface ConceptScore {
 
 export interface Location {
   is_oa: boolean;
+  is_accepted?: boolean;
+  is_published?: boolean;
   landing_page_url?: string;
   pdf_url?: string;
   source?: MinimalSource;
@@ -187,7 +312,7 @@ export interface YearCount {
 }
 
 export interface Affiliation {
-  institution: MinimalInstitution;
+  institution: InstitutionSummary; // Changed from MinimalInstitution
   years: number[];
 }
 
@@ -245,14 +370,74 @@ export interface MinimalSource {
   issn_l?: string;
   issn?: string[];
   host_organization?: string;
+  host_organization_lineage?: string[];
+  is_core?: boolean;
+  is_in_doaj?: boolean;
   type: string;
 }
 
-export interface MinimalConcept {
+export interface MinimalTopic { // Renamed from MinimalConcept
   id: string;
   wikidata?: string;
   display_name: string;
   level: number;
+}
+// Additional Work-related interfaces
+
+export interface Biblio {
+  first_page?: string;
+  last_page?: string;
+  issue?: string;
+  volume?: string;
+}
+
+export interface APCInfo {
+  value?: number;
+  currency?: string;
+  provenance?: string;
+  value_usd?: number;
+}
+
+export interface WorkIdentifiers {
+  openalex?: string;
+  doi?: string;
+  mag?: string;
+  pmid?: string;
+  pmcid?: string;
+}
+
+export interface Keyword {
+  keyword: string;
+}
+
+export interface Grant {
+  funder?: string;
+  funder_display_name?: string;
+  award_id?: string;
+}
+
+export interface EmbeddedTopicInfo { // Renamed from the conflicting Topic interface
+  id: string;
+  display_name?: string;
+  score?: number;
+  subfield?: {
+    id: string;
+    display_name?: string;
+  };
+  field?: {
+    id: string;
+    display_name?: string;
+  };
+  domain?: {
+    id: string;
+    display_name?: string;
+  };
+}
+
+export interface SustainableDevelopmentGoal {
+  id: string;
+  display_name?: string;
+  score?: number;
 }
 
 // API Response interfaces
