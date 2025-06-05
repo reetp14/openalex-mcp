@@ -260,7 +260,7 @@ const server = new Server({
             },
             {
                 name: "search_basic",
-                description: "Type-ahead search across any OpenAlex entity type, (default search unless asket for deatiled search by user)",
+                description: "search across any OpenAlex entity type, (default search unless asket for deatiled search by user)",
                 inputSchema: {
                     type: "object",
                     properties: {
@@ -315,7 +315,7 @@ const server = new Server({
     const { name, arguments: args } = request.params;
     try {
         switch (name) {
-            case "search_works":
+            case "search_works_detailed":
                 return {
                     content: [{
                             type: "text",
@@ -378,7 +378,7 @@ const server = new Server({
                         }]
                 };
             }
-            case "autocomplete": {
+            case "search_basic": {
                 const params = args;
                 return {
                     content: [{
