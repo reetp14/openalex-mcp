@@ -16,64 +16,24 @@
 import { Server } from "@modelcontextprotocol/sdk/server/index.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { CallToolRequestSchema, ListToolsRequestSchema, CallToolRequest } from "@modelcontextprotocol/sdk/types.js";
-import axios from "axios";
 import dotenv from "dotenv";
-import { OpenAlexQueryParams, EntityType } from "./types.js";
+
+// Import tool handlers
+import { searchWorks } from "./tools/searchWorks.js";
+import { searchAuthors } from "./tools/searchAuthors.js";
+import { searchSources } from "./tools/searchSources.js";
+import { searchInstitutions } from "./tools/searchInstitutions.js";
+import { searchTopics } from "./tools/searchTopics.js";
+import { searchPublishers } from "./tools/searchPublishers.js";
+import { searchFunders } from "./tools/searchFunders.js";
+import { getEntity } from "./tools/getEntity.js";
+import { autocomplete } from "./tools/autocomplete.js";
+import { classifyText } from "./tools/classifyText.js";
+import { getFilterableFields } from "./tools/getFilterableFields.js";
+
 // Load environment variables
 dotenv.config();
-const OPENALEX_BASE_URL = "https://api.openalex.org";
-/**
- * Helper function to build query string from parameters
- */
-function buildQueryString(params: Record<string, any>): string {
-    const searchParams = new URLSearchParams();
-    Object.entries(params).forEach(([key, value]) => {
-        if (value !== undefined && value !== null) {
-            searchParams.append(key, String(value));
-        }
-    });
-    return searchParams.toString();
-}
-/**
- * Helper function to make OpenAlex API requests
- */
-async function makeOpenAlexRequest(endpoint: string, params: OpenAlexQueryParams = {}): Promise<any> {
-    const queryString = buildQueryString(params);
-    const url = `${OPENALEX_BASE_URL}${endpoint}${queryString ? '?' + queryString : ''}`;
-    try {
-        // Build User-Agent with mailto for polite pool access
-        let userAgent = 'OpenAlex-MCP-Server/1.0.0 (https://github.com/openalex-mcp-server)';
-        if (params.mailto) {
-            userAgent += ` mailto:${params.mailto}`;
-        }
-        else {
-            // Use environment variable for default email
-            const defaultEmail = process.env.OPENALEX_DEFAULT_EMAIL || 'mcp-server@example.com';
-            userAgent += ` mailto:${defaultEmail}`;
-        }
-        // Build headers
-        const headers: Record<string, string> = {
-            'Accept': 'application/json',
-            'User-Agent': userAgent
-        };
-        // Add Bearer token - check parameter first, then environment variable
-        const bearerToken = params.bearer_token || process.env.OPENALEX_BEARER_TOKEN;
-        if (bearerToken) {
-            headers['Authorization'] = `Bearer ${bearerToken}`;
-        }
-        const response = await axios.get(url, {
-            headers,
-            timeout: 30000
-        });
-        return response.data;
-    }
-    catch (error) {
-        if (axios.isAxiosError(error)) {
-            throw new Error(`OpenAlex API error: ${error.response?.status} - ${error.response?.statusText || error.message}`);
-        }
-        throw error;
-    }
-}
+
 /**
  * Create an MCP server for OpenAlex API access
  */
@@ -85,6 +45,7 @@ const server = new Server({
         tools: {},
     },
 });
+
 /**
  * Handler that lists available tools for OpenAlex API access
  */
@@ -109,7 +70,8 @@ const server = new Server({
                         seed: { type: "number", description: "Random seed for reproducible sampling" },
                         mailto: { type: "string", description: "Email for rate limits" },
                         api_key: { type: "string", description: "Premium API key" },
-                        bearer_token: { type: "string", description: "Bearer token for authentication" }
+                        bearer_token: { type: "string", description: "Bearer token for authentication" },
+                        view: { type: "string", "enum": ["summary", "full"], description: "The view of the data to return. 'summary' returns a concise version, 'full' returns the complete object." }
                     }
                 }
             },
@@ -308,6 +270,7 @@ const server = new Server({
         ]
     };
 });
+
 /**
  * Handler for tool execution
  */
@@ -316,163 +279,27 @@ const server = new Server({
     try {
         switch (name) {
             case "search_works":
-                return {
-                    content: [{
-                            type: "text",
-                            text: JSON.stringify(await makeOpenAlexRequest("/works", args), null, 2)
-                        }]
-                };
+                return await searchWorks(args);
             case "search_authors":
-                return {
-                    content: [{
-                            type: "text",
-                            text: JSON.stringify(await makeOpenAlexRequest("/authors", args), null, 2)
-                        }]
-                };
+                return await searchAuthors(args);
             case "search_sources":
-                return {
-                    content: [{
-                            type: "text",
-                            text: JSON.stringify(await makeOpenAlexRequest("/sources", args), null, 2)
-                        }]
-                };
+                return await searchSources(args);
             case "search_institutions":
-                return {
-                    content: [{
-                            type: "text",
-                            text: JSON.stringify(await makeOpenAlexRequest("/institutions", args), null, 2)
-                        }]
-                };
-            case "search_topics": // Renamed from search_concepts
-                return {
-                    content: [{
-                            type: "text",
-                            text: JSON.stringify(await makeOpenAlexRequest("/topics", args), null, 2) // Endpoint changed to /topics
-                        }]
-                };
+                return await searchInstitutions(args);
+            case "search_topics":
+                return await searchTopics(args);
             case "search_publishers":
-                return {
-                    content: [{
-                            type: "text",
-                            text: JSON.stringify(await makeOpenAlexRequest("/publishers", args), null, 2)
-                        }]
-                };
+                return await searchPublishers(args);
             case "search_funders":
-                return {
-                    content: [{
-                            type: "text",
-                            text: JSON.stringify(await makeOpenAlexRequest("/funders", args), null, 2)
-                        }]
-                };
-            case "get_entity": {
-                const { entity_type, openalex_id, select, mailto } = args as any;
-                const params: Record<string, any> = {};
-                if (select)
-                    params.select = select;
-                if (mailto)
-                    params.mailto = mailto;
-                return {
-                    content: [{
-                            type: "text",
-                            text: JSON.stringify(await makeOpenAlexRequest(`/${entity_type}/${openalex_id}`, params), null, 2)
-                        }]
-                };
-            }
-            case "autocomplete": {
-                const params = args;
-                return {
-                    content: [{
-                            type: "text",
-                            text: JSON.stringify(await makeOpenAlexRequest("/autocomplete", params), null, 2)
-                        }]
-                };
-            }
-            case "classify_text": {
-                const { title, abstract, mailto } = args as any;
-                const params: Record<string, any> = {};
-                if (title)
-                    params.title = title;
-                if (abstract)
-                    params.abstract = abstract;
-                if (mailto)
-                    params.mailto = mailto;
-                return {
-                    content: [{
-                            type: "text",
-                            text: JSON.stringify(await makeOpenAlexRequest("/text", params), null, 2)
-                        }]
-                };
-            }
-            case "get_filterable_fields": {
-                const { entity_type } = args as { entity_type: EntityType | string };
-                let fields: any[] = [];
-                switch (entity_type) {
-                    case "works":
-                        fields = [
-                            // Attribute Filters from Work object
-                            { name: "authorships.author.id", type: "string", category: "attribute", description: "OpenAlex ID of an author." },
-                            { name: "authorships.author.orcid", type: "string", category: "attribute", description: "ORCID of an author." },
-                            { name: "authorships.countries", type: "string", category: "attribute", description: "Country codes associated with author affiliations." },
-                            { name: "authorships.institutions.id", type: "string", category: "attribute", description: "OpenAlex ID of an author's institution." },
-                            { name: "apc_paid.value_usd", type: "number", category: "attribute", description: "APC paid value in USD." },
-                            { name: "best_oa_location.license", type: "string", category: "attribute", description: "License of the best OA location." },
-                            { name: "biblio.volume", type: "string", category: "attribute", description: "Volume number." },
-                            { name: "cited_by_count", type: "integer", category: "attribute", description: "Total number of times this work has been cited." },
-                            { name: "concepts.id", type: "string", category: "attribute", description: "OpenAlex ID of an associated concept/topic." },
-                            { name: "doi", type: "string", category: "attribute", description: "Digital Object Identifier of the work." },
-                            { name: "has_fulltext", type: "boolean", category: "attribute", description: "Indicates if full text is available via OpenAlex." },
-                            { name: "ids.openalex", type: "string", category: "attribute", description: "OpenAlex ID of the work." },
-                            { name: "ids.pmid", type: "string", category: "attribute", description: "PubMed ID of the work." },
-                            { name: "is_paratext", type: "boolean", category: "attribute", description: "Indicates if the work is paratext (e.g., cover, table of contents)." },
-                            { name: "is_retracted", type: "boolean", category: "attribute", description: "Indicates if the work has been retracted." },
-                            { name: "language", type: "string", category: "attribute", description: "Language code of the work." },
-                            { name: "locations.is_oa", type: "boolean", category: "attribute", description: "Indicates if a specific location is Open Access." },
-                            { name: "open_access.is_oa", type: "boolean", category: "attribute", description: "Overall Open Access status of the work." },
-                            { name: "open_access.oa_status", type: "string", category: "attribute", description: "OA status (e.g., gold, green, hybrid)." },
-                            { name: "primary_location.source.id", type: "string", category: "attribute", description: "OpenAlex ID of the primary hosting source." },
-                            { name: "publication_year", type: "integer", category: "attribute", description: "Year of publication." },
-                            { name: "publication_date", type: "date", category: "attribute", description: "Full publication date (YYYY-MM-DD)." },
-                            { name: "type", type: "string", category: "attribute", description: "Type of the work (e.g., article, book)." },
-                            // Convenience Filters for Works
-                            { name: "abstract.search", type: "string", category: "convenience", description: "Full-text search within the work's abstract." },
-                            { name: "authors_count", type: "integer", category: "convenience", description: "Number of authors for the work." },
-                            { name: "cited_by", type: "string", category: "convenience", description: "OpenAlex ID of a work that this work cites (outgoing citations)." },
-                            { name: "cites", type: "string", category: "convenience", description: "OpenAlex ID of a work that cites this work (incoming citations)." },
-                            { name: "display_name.search", type: "string", category: "convenience", description: "Full-text search within the work's title (alias: title.search)." },
-                            { name: "from_publication_date", type: "date", category: "convenience", description: "Filter for works published on or after this date." },
-                            { name: "to_publication_date", type: "date", category: "convenience", description: "Filter for works published on or before this date." },
-                            { name: "has_abstract", type: "boolean", category: "convenience", description: "Indicates if the work has an abstract." },
-                            { name: "has_doi", type: "boolean", category: "convenience", description: "Indicates if the work has a DOI." },
-                        ];
-                        break;
-                    case "authors":
-                        fields = [ { name: "orcid", type: "string", category: "attribute", description: "Author's ORCID iD." }, { name: "display_name.search", type: "string", category: "convenience", description: "Search by author's display name."} /* ... more author filters ... */ ];
-                        break;
-                    case "sources":
-                        fields = [ { name: "issn", type: "string", category: "attribute", description: "Source's ISSN." }, { name: "is_oa", type: "boolean", category: "attribute", description: "If the source is fully OA."} /* ... more source filters ... */ ];
-                        break;
-                    case "institutions":
-                        fields = [ { name: "ror", type: "string", category: "attribute", description: "Institution's ROR ID." }, { name: "country_code", type: "string", category: "attribute", description: "Institution's country code."} /* ... more institution filters ... */ ];
-                        break;
-                    case "topics":
-                        fields = [ { name: "domain.id", type: "string", category: "attribute", description: "ID of the topic's domain." }, { name: "display_name.search", type: "string", category: "convenience", description: "Search by topic's display name."} /* ... more topic filters ... */ ];
-                        break;
-                    case "publishers":
-                        fields = [ { name: "country_codes", type: "string", category: "attribute", description: "Publisher's country codes." }, { name: "display_name.search", type: "string", category: "convenience", description: "Search by publisher's display name."} /* ... more publisher filters ... */ ];
-                        break;
-                    case "funders":
-                        fields = [ { name: "country_code", type: "string", category: "attribute", description: "Funder's country code." }, { name: "display_name.search", type: "string", category: "convenience", description: "Search by funder's display name."} /* ... more funder filters ... */ ];
-                        break;
-                    default:
-                        throw new Error(`Unknown entity_type for get_filterable_fields: ${entity_type}`);
-                }
-                return {
-                    content: [{
-                        type: "text",
-                        text: JSON.stringify(fields, null, 2)
-                    }]
-                };
-            }
+                return await searchFunders(args);
+            case "get_entity":
+                return await getEntity(args);
+            case "autocomplete":
+                return await autocomplete(args);
+            case "classify_text":
+                return await classifyText(args);
+            case "get_filterable_fields":
+                return await getFilterableFields(args);
             default:
                 throw new Error(`Unknown tool: ${name}`);
         }
@@ -487,6 +314,7 @@ const server = new Server({
         };
     }
 });
+
 /**
  * Start the server using stdio transport
  */
@@ -494,6 +322,7 @@ async function main() {
     const transport = new StdioServerTransport();
     await (server as any).connect(transport);
 }
+
 main().catch((error) => {
     console.error("Server error:", error);
     process.exit(1);
